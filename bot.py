@@ -2,8 +2,10 @@ import discord
 import asyncio
 import uvicorn
 import aiohttp
+import io
+import base64
 from dotenv import dotenv_values
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from pydantic import BaseModel
 from typing import List, Literal
 
@@ -16,47 +18,85 @@ app = FastAPI()
 TOKEN = cfg.get("TOKEN")
 TARGET_API_URL = cfg.get("TARGET_API_URL")
 
+class Author(BaseModel):
+    tag: str
+    name: str
+
+class Attachment(BaseModel):
+    type: Literal["image", "archive"]  # Додати інші типи
+    data: str           #List[int]
+
 class Message(BaseModel):
-    chat_id : int
     text: str
+    attachments: List[Attachment] = [] # Не обов'язково
+
+class RequestData(BaseModel):
+    platform: Literal["telegram", "discord"]
+    author: Author
+    message: Message
 
 class DELETE(BaseModel):
-    chat_id : int
     message_id: int
-
 
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
-
 client = discord.Client(intents=intents)
 
-
-
-
 @app.post("/discord/")
-async def send_to_api(message: Message):
-    """Відправляє запит на інше API"""
+async def send_to_api(
+    data: RequestData = Body(...)
+):
     async with aiohttp.ClientSession() as session:
-        payload = {"chat_id": message.chat_id, "text": message.text}
+        payload = {
+            "platform": data.platform,
+            "author" : {
+                "tag": data.author.tag,
+                "name": data.author.name
+            },
+            "message": {
+                "text": data.message.text,
+                "attachments": [{"type": att.type, "data": att.data} for att in data.message.attachments]
+            }
+        }
         async with session.get(TARGET_API_URL, json=payload) as response:
             result = await response.json()
             return {"status": "sent", "response": result}
 
 @app.get("/discord/")
-async def send_to_discord(message:Message):
-    channel = client.get_channel(message.chat_id)
-    if channel:
-        await channel.send(message.text)
-        return {"status": "sent"}
-    return {"error": "Channel not found"}
+async def send_to_discord(
+    chat_id: int,
+    data: RequestData = Body(...)
+):
+    channel = client.get_channel(chat_id)
+    if not channel:
+        return {"status": "failed", "reason": "channel not found"}
+
+    message_content = f"**Автор:** {data.author.name} ({data.author.tag})\n{data.message.text}"
+
+    files = []
+    for attachment in data.message.attachments:
+       if attachment.type == "image":
+           image_bytes = base64.b64decode(attachment.data)
+           file = discord.File(io.BytesIO(image_bytes), filename="image.png") #filename=attachment.filename
+           files.append(file)
+
+    await channel.send(content=message_content, files=files if files else None)
+    return {"status": "sent"}
+
 
 @app.delete("/discord/")
-async def delete_message(message: DELETE):
+async def delete_message(
+    chat_id: int,
+    delete: DELETE
+):
     """Видаляє повідомлення за ID"""
-    channel = client.get_channel(message.chat_id)
+    channel = client.get_channel(chat_id)
+    if not channel:
+        return {"status": "failed", "reason": "channel not found"}
+
     try:
-        message = await channel.fetch_message(message.message_id)
+        message = await channel.fetch_message(delete.message_id)
         await message.delete()
         print("✅ Повідомлення видалено!")
     except discord.NotFound:
