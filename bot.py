@@ -43,6 +43,19 @@ intents.messages = True
 intents.message_content = True
 client = discord.Client(intents=intents)
 
+""" Для тесту
+@app.post("/telegram/")
+async def telegram(
+    data: RequestData = Body(...)
+):
+    async with aiohttp.ClientSession() as session:
+        payload = {
+            "text": data.text
+        }
+        async with session.get(TARGET_URL, json=payload) as response:
+            result = await response.json()
+            return {"status": "sent", "response": result} """
+
 @app.post("/discord/")
 async def send_to_api(
     data: RequestData = Body(...)
@@ -90,7 +103,6 @@ async def delete_message(
     chat_id: int,
     delete: DELETE
 ):
-    """Видаляє повідомлення за ID"""
     channel = client.get_channel(chat_id)
     if not channel:
         return {"status": "failed", "reason": "channel not found"}
@@ -119,6 +131,17 @@ async def on_message(message):
     if message.content.strip():
         print(f"[{message.guild.name} | {message.channel.name}] {message.author}: {message.content}")
 
+        """request_data = RequestData(
+            platform="discord",
+            author=Author(tag=message.author.name, name=message.author.display_name),
+            message=Message(
+                text=message.content,
+                attachments=[]
+            )
+        )
+        #request_data = DELETE(text = message.content)
+        await telegram(request_data)"""
+
     for attachment in message.attachments:
         print(f"📂 Отримано файл: {attachment.filename} ({attachment.size} байт)\n")
         #if message.content.strip():
@@ -128,8 +151,6 @@ async def main():
     # Запускаємо FastAPI у фоновому режимі
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
     server = uvicorn.Server(config)
-
-
     await asyncio.gather(
         server.serve(),
         client.start(TOKEN)
