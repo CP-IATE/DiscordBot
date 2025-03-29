@@ -2,62 +2,23 @@ import discord
 import asyncio
 import uvicorn
 import aiohttp
-import io
-import base64
-from dotenv import dotenv_values
 from fastapi import FastAPI, Body
-from pydantic import BaseModel
-from typing import List, Literal
 
-
-
-cfg = dotenv_values("config.env")
-
+from models import RequestData, DELETE
+from utils import encode_file_to_base64, decode_base64_to_file
+from config import TOKEN, TARGET_API_URL
+from events import setup_event_handlers
 app = FastAPI()
-
-TOKEN = cfg.get("TOKEN")
-TARGET_API_URL = cfg.get("TARGET_API_URL")
-
-class Author(BaseModel):
-    tag: str
-    name: str
-
-class Attachment(BaseModel):
-    type: Literal["image", "archive"]  # Додати інші типи
-    data: str           #List[int]
-
-class Message(BaseModel):
-    text: str
-    attachments: List[Attachment] = [] # Не обов'язково
-
-class RequestData(BaseModel):
-    platform: Literal["telegram", "discord"]
-    author: Author
-    message: Message
-
-class DELETE(BaseModel):
-    message_id: int
 
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
 client = discord.Client(intents=intents)
 
-""" Для тесту
-@app.post("/telegram/")
-async def telegram(
-    data: RequestData = Body(...)
-):
-    async with aiohttp.ClientSession() as session:
-        payload = {
-            "text": data.text
-        }
-        async with session.get(TARGET_URL, json=payload) as response:
-            result = await response.json()
-            return {"status": "sent", "response": result} """
+setup_event_handlers(client)
 
-@app.post("/discord/")
-async def send_to_api(
+@app.post("/discord-telegram/")
+async def send_message_to_telegram(
     data: RequestData = Body(...)
 ):
     async with aiohttp.ClientSession() as session:
@@ -76,8 +37,8 @@ async def send_to_api(
             result = await response.json()
             return {"status": "sent", "response": result}
 
-@app.get("/discord/")
-async def send_to_discord(
+@app.get("/discord-telegram/")
+async def receive_message_from_telegram(
     chat_id: int,
     data: RequestData = Body(...)
 ):
@@ -90,16 +51,15 @@ async def send_to_discord(
     files = []
     for attachment in data.message.attachments:
        if attachment.type == "image":
-           image_bytes = base64.b64decode(attachment.data)
-           file = discord.File(io.BytesIO(image_bytes), filename="image.png") #filename=attachment.filename
+           file = decode_base64_to_file(attachment.data, "image.png")
            files.append(file)
 
     await channel.send(content=message_content, files=files if files else None)
     return {"status": "sent"}
 
 
-@app.delete("/discord/")
-async def delete_message(
+@app.delete("/discord-telegram/")
+async def delete_message_in_channel(
     chat_id: int,
     delete: DELETE
 ):
@@ -117,35 +77,6 @@ async def delete_message(
         print("❌ У мене немає прав на видалення!")
     except discord.HTTPException:
         print("❌ Сталася помилка при видаленні!")
-
-
-@client.event
-async def on_ready():
-    print(f"Bot {client.user} is running...!")
-
-@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
-
-    if message.content.strip():
-        print(f"[{message.guild.name} | {message.channel.name}] {message.author}: {message.content}")
-
-        """request_data = RequestData(
-            platform="discord",
-            author=Author(tag=message.author.name, name=message.author.display_name),
-            message=Message(
-                text=message.content,
-                attachments=[]
-            )
-        )
-        #request_data = DELETE(text = message.content)
-        await telegram(request_data)"""
-
-    for attachment in message.attachments:
-        print(f"📂 Отримано файл: {attachment.filename} ({attachment.size} байт)\n")
-        #if message.content.strip():
-        #    file_bytes = await attachment.read()
 
 async def main():
     # Запускаємо FastAPI у фоновому режимі
