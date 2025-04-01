@@ -40,12 +40,13 @@ def setup_event_handlers (client):
         if message.content.strip():
             print(f"[{message.guild.name} | {message.channel.name}] {message.author}: {message.content}")
 
-        files = []
+        file_mime_dict = {}
         for attachment in message.attachments:
             print(f"📂 File received: {attachment.filename} ({attachment.size} bytes)\n")
             file_bytes = await attachment.read()
             base64_data = encode_file_to_base64(file_bytes)
-            files.append(base64_data)
+            filename = attachment.filename
+            file_mime_dict[base64_data] = filename
 
         request_data = RequestData(
             platform="discord",
@@ -53,8 +54,7 @@ def setup_event_handlers (client):
             author=Author(tag=message.author.name, name=message.author.display_name),
             message=Message(
                 text=message.content,
-                attachments= [Attachment(type = "image", data=file) for file in files]
+                attachments=[Attachment(type=mime, data=file) for file, mime in file_mime_dict.items()]
             )
         )
         await send_message_to_telegram(request_data)
-        #print(f"📂 File: {attachment.filename} coded into Base64! - {base64_data}")

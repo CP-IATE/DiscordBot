@@ -6,7 +6,8 @@ class Author(BaseModel):
     name: str
 
 class Attachment(BaseModel):
-    type: Literal["image", "video", "audio", "archive", "document", "code", "gif","jpg"]
+    #type: #Literal["image", "video", "audio", "archive", "document", "code", "gif","jpg"]
+    type: str
     data: str
 
 class Message(BaseModel):

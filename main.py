@@ -27,12 +27,10 @@ async def receive_from_telegram(
         return {"status": "failed", "reason": "channel not found"}
 
     message_content = f"**Author:** {data.author.name} ({data.author.tag})\n**Channel:** {data.channel}\n{data.message.text}"
-
     files = []
     for attachment in data.message.attachments:
-        if attachment.type == "jpg":
-            file = decode_base64_to_file(attachment.data, "image.jpg")
-            files.append(file)
+        file = decode_base64_to_file(attachment.data, attachment.type)
+        files.append(file)
 
     await channel.send(content=message_content, files=files if files else None)
     return {"status": "sent"}
