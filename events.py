@@ -3,7 +3,8 @@ from models import RequestData, Author, Message, Attachment
 from config import TARGET_API_URL, TARGET_API_URL2
 import aiohttp
 from fastapi import Body
-
+import discord
+from DMhandler import process_dm_message, handle_post_content
 
 async def send_message_to_telegram(
     data: RequestData = Body(...)
@@ -21,7 +22,7 @@ async def send_message_to_telegram(
                 "attachments": [{"type": att.type, "data": att.data} for att in data.message.attachments]
             }
         }
-        async with session.post(TARGET_API_URL, json=payload) as response:
+        async with session.post(TARGET_API_URL2, json=payload) as response:
             result = await response.json()
             return {"status": "sent", "response": result}
 
@@ -37,6 +38,14 @@ def setup_event_handlers (client):
         if message.author == client.user:
             return
 
+        if isinstance(message.channel, discord.DMChannel):
+            if message.content == "!post":
+                await process_dm_message(message)
+            else:
+                await handle_post_content(message)
+            return
+
+        """ probably unnecessary part"""
         if message.content.strip():
             print(f"[{message.guild.name} | {message.channel.name}] {message.author}: {message.content}")
 

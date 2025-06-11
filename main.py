@@ -13,6 +13,7 @@ app = FastAPI()
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
+intents.dm_messages = True
 client = discord.Client(intents=intents)
 
 setup_event_handlers(client)

@@ -1,5 +1,10 @@
 from pydantic import BaseModel
 from typing import List, Literal
+from typing import Optional
+from datetime import datetime
+
+class DELETE(BaseModel):
+    message_id: int
 
 class Author(BaseModel):
     tag: str
@@ -20,5 +25,13 @@ class RequestData(BaseModel):
     author: Author
     message: Message
 
-class DELETE(BaseModel):
-    message_id: int
+class User(BaseModel):
+    username: str
+    role: str
+    telegram_id: int
+    discord_id: int
+
+class Post(BaseModel):
+    main:RequestData
+    created_at: datetime
+    resend_at: Optional[datetime] = None
