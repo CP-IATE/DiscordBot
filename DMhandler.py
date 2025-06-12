@@ -4,9 +4,11 @@ from pymongo import MongoClient
 from datetime import datetime
 import asyncio
 from dbContext import add_post
-import re
 from models import Post, RequestData, Author, Message, Attachment
-from utils import encode_file_to_base64, decode_base64_to_file
+from utils import encode_file_to_base64
+from bot import client
+
+
 
 # Dictionary to store user states
 user_states = {}
@@ -48,10 +50,20 @@ async def handle_post_content(message):
                 state.files.extend(message.attachments)
 
     elif state.step == "channel":
-        if message.content:
-            state.channel_id = message.content
-            state.step = "asking_resend"
-            await message.channel.send("Чи потрібно запланувати повторне надсилання? (так/ні)")
+        try:
+            channel = await client.fetch_channel(message.content)
+            if channel:
+                state.channel_id = message.content
+                state.step = "asking_resend"
+                await message.channel.send("Чи потрібно запланувати повторне надсилання? (так/ні)")
+
+        except discord.NotFound:
+            await message.channel.send("❌ Канал не знайдено.")
+        except discord.Forbidden:
+            await message.channel.send("❌ Немає прав доступу до каналу.")
+        except discord.HTTPException as e:
+            await message.channel.send(f"❌ Сталася помилка при запиті: {e}")
+
 
     elif state.step == "asking_resend":
         if message.content.lower() in ["так", "yes", "y"]:
