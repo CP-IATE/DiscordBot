@@ -5,26 +5,7 @@ import aiohttp
 from fastapi import Body
 import discord
 from DMhandler import process_dm_message, handle_post_content
-
-async def send_message_to_telegram(
-    data: RequestData = Body(...)
-):
-    async with aiohttp.ClientSession() as session:
-        payload = {
-            "platform": data.platform,
-            "channel": data.channel,
-            "author" : {
-                "tag": data.author.tag,
-                "name": data.author.name
-            },
-            "message": {
-                "text": data.message.text,
-                "attachments": [{"type": att.type, "data": att.data} for att in data.message.attachments]
-            }
-        }
-        async with session.post(TARGET_API_URL2, json=payload) as response:
-            result = await response.json()
-            return {"status": "sent", "response": result}
+from send_to_discord import send_message_to_telegram
 
 
 

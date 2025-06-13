@@ -7,7 +7,7 @@ from dbContext import add_post
 from models import Post, RequestData, Author, Message, Attachment
 from utils import encode_file_to_base64
 from bot import client
-
+from send_to_discord import send_message_to_telegram
 
 
 # Dictionary to store user states
@@ -53,7 +53,7 @@ async def handle_post_content(message):
         try:
             channel = await client.fetch_channel(message.content)
             if channel:
-                state.channel_id = message.content
+                state.channel_id = channel
                 state.step = "asking_resend"
                 await message.channel.send("Чи потрібно запланувати повторне надсилання? (так/ні)")
 
@@ -91,33 +91,29 @@ async def save_post_to_db(message):
     state = user_states[message.author.id]
     
     # Prepare attachments
-    attachments = []
-    for file in state.files:
-        file_bytes = await file.read()
+    file_mime_dict = {}
+    for attachment in state.files:
+        print(f"📂 File received: {attachment.filename} ({attachment.size} bytes)\n")
+        file_bytes = await attachment.read()
         base64_data = encode_file_to_base64(file_bytes)
-        attachments.append(Attachment(
-            type=file.content_type or "document",
-            data=base64_data
-        ))
+        filename = attachment.filename
+        file_mime_dict[base64_data] = filename
 
-    # Create RequestData
     request_data = RequestData(
         platform="discord",
         channel=str(state.channel_id),
-        author=Author(
-            tag=str(message.author.id),
-            name=message.author.display_name
-        ),
+        author=Author(tag=message.author.name, name=message.author.display_name),
         message=Message(
-            text=state.content or "",
-            attachments=attachments
+            text=state.content,
+            attachments=[Attachment(type=mime, data=file) for file, mime in file_mime_dict.items()]
         )
     )
+    created_at = datetime.now()
 
     # Create Post
     post = Post(
         main=request_data,
-        created_at=datetime.utcnow(),
+        created_at=created_at,
         resend_at=state.resend_at
     )
 
@@ -127,5 +123,7 @@ async def save_post_to_db(message):
     # Send confirmation
     await message.channel.send("✅ Публікацію успішно збережено!")
 
+    #send to channel
+    await send_message_to_telegram(request_data)
     # Clean up state
     del user_states[message.author.id]

@@ -10,14 +10,8 @@ db = client[MONGODB_DB_NAME]
 users_collection = db["users"]
 post_collection = db["posts"]
 
-def add_user(username: str, role: str, telegram_id: int, discord_id: int) -> None:
-    user = User(
-        username=username,
-        role=role,
-        telegram_id=telegram_id,
-        discord_id=discord_id
-    )
-    users_collection.insert_one(user.model_dump())
+def add_user(user: User) -> None:
+    users_collection.insert_one(user.model_dump(exclude_none=True))
 
 def add_post(post: Post) -> None:
     post_collection.insert_one(post.model_dump(exclude_none=True))
