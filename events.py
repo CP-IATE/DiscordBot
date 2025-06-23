@@ -1,12 +1,9 @@
 from utils import encode_file_to_base64
-from models import RequestData, Author, Message, Attachment
-from config import TARGET_API_URL, TARGET_API_URL2
-import aiohttp
-from fastapi import Body
+from models import RequestData, Author, Message, Attachment,Post
 import discord
 from DMhandler import process_dm_message, handle_post_content
 from send_to_discord import send_message_to_telegram
-
+from datetime import datetime
 
 
 def setup_event_handlers (client):
@@ -40,11 +37,20 @@ def setup_event_handlers (client):
 
         request_data = RequestData(
             platform="discord",
-            channel= message.channel.name,
+            channel=message.channel.name,
             author=Author(tag=message.author.name, name=message.author.display_name),
             message=Message(
                 text=message.content,
                 attachments=[Attachment(type=mime, data=file) for file, mime in file_mime_dict.items()]
             )
         )
-        await send_message_to_telegram(request_data)
+
+        created_at = datetime.now()
+
+        post = Post(
+            main=request_data,
+            created_at=created_at,
+            resend_at=None
+        )
+
+        await send_message_to_telegram(post)

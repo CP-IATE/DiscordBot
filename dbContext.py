@@ -1,8 +1,7 @@
 from pymongo import MongoClient
 from typing import Optional, Dict, Any
-from models import User, Post, RequestData
+from models import User, Post
 from config import MONGODB_HOST, MONGODB_PORT, MONGODB_DB_NAME
-from datetime import datetime
 
 
 client = MongoClient(MONGODB_HOST, int(MONGODB_PORT))

@@ -5,6 +5,7 @@ cfg = dotenv_values("config.env")
 TOKEN = cfg.get("TOKEN")
 TARGET_API_URL = cfg.get("TARGET_API_URL")
 TARGET_API_URL2 = cfg.get("TARGET_API_URL2")
+TARGET_API_URL3 = cfg.get("TARGET_API_URL3")
 
 MONGODB_HOST=cfg.get("MONGODB_HOST")
 MONGODB_PORT=cfg.get("MONGODB_PORT")

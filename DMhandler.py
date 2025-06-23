@@ -1,8 +1,5 @@
 import discord
-from discord.ext import commands
-from pymongo import MongoClient
 from datetime import datetime
-import asyncio
 from dbContext import add_post
 from models import Post, RequestData, Author, Message, Attachment
 from utils import encode_file_to_base64
@@ -10,7 +7,6 @@ from bot import client
 from send_to_discord import send_message_to_telegram
 
 
-# Dictionary to store user states
 user_states = {}
 
 class PostState:
@@ -90,7 +86,7 @@ async def handle_post_content(message):
 async def save_post_to_db(message):
     state = user_states[message.author.id]
     
-    # Prepare attachments
+
     file_mime_dict = {}
     for attachment in state.files:
         print(f"📂 File received: {attachment.filename} ({attachment.size} bytes)\n")
@@ -108,22 +104,21 @@ async def save_post_to_db(message):
             attachments=[Attachment(type=mime, data=file) for file, mime in file_mime_dict.items()]
         )
     )
+
     created_at = datetime.now()
 
-    # Create Post
     post = Post(
         main=request_data,
         created_at=created_at,
         resend_at=state.resend_at
     )
 
-    # Save to MongoDB
-    add_post(post)
-    
-    # Send confirmation
+
+    #add_post(post)
+    print("Adad")
+
+    await send_message_to_telegram(post)
+
     await message.channel.send("✅ Публікацію успішно збережено!")
 
-    #send to channel
-    await send_message_to_telegram(request_data)
-    # Clean up state
     del user_states[message.author.id]

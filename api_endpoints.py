@@ -1,23 +1,24 @@
 from bot import client
 import discord
-from models import RequestData, DELETE
+from models import RequestData, DELETE, Post
 from utils import decode_base64_to_file
 from fastapi import Body, APIRouter
 
 router = APIRouter()
 
+
 @router.post("/discord-telegram/")
 async def receive_from_telegram(
         chat_id: int,
-        data: RequestData = Body(...)
+        data: Post = Body(...)
 ):
     channel = client.get_channel(chat_id)
     if not channel:
         return {"status": "failed", "reason": "channel not found"}
 
-    message_content = f"**Author:** {data.author.name} ({data.author.tag})\n**Channel:** {data.channel}\n{data.message.text}"
+    message_content = f"**Author:** {data.main.author.name} ({data.main.author.tag})\n**Channel:** {data.main.channel}\n{data.main.message.text}"
     files = []
-    for attachment in data.message.attachments:
+    for attachment in data.main.message.attachments:
         file = decode_base64_to_file(attachment.data, attachment.type)
         files.append(file)
 
@@ -27,8 +28,8 @@ async def receive_from_telegram(
 
 @router.delete("/discord-telegram/")
 async def delete_message_in_channel(
-    chat_id: int,
-    delete: DELETE
+        chat_id: int,
+        delete: DELETE
 ):
     channel = client.get_channel(chat_id)
     if not channel:
